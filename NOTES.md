@@ -47,7 +47,7 @@ Khi công cụ bị timeout thì Agent phải trả lời là chưa thể xác m
 
 **Lỗi bổ sung ở case H2:**
 
-Ở lần đánh giá After toàn bộ, case H2 được 50/100. Em kiểm tra trace và thấy Agent chỉ gọi `get_incident_details` để kiểm tra incident `t89g2q1800fr`.
+Ở một lần đánh giá After trước đó, case H2 được 50/100. Em kiểm tra trace và thấy Agent chỉ gọi `get_incident_details` để kiểm tra incident `t89g2q1800fr`.
 
 ```text
 Case H2
@@ -106,46 +106,24 @@ Em cũng chạy riêng hai case để kiểm tra:
 
 ## 4. So sánh hai lần chạy
 
-Em chạy bộ đánh giá gồm 22 case bằng Gemini `gemini-3.5-flash-lite`. Tuy nhiên, trong quá trình chạy có nhiều lần API báo lỗi HTTP 429 và HTTP 503 nên chưa lấy được điểm tổng đầy đủ.
+Em chạy bộ đánh giá gồm 22 case bằng Gemini `gemini-3.5-flash-lite`. Trong những lượt chạy đầu, API nhiều lần báo HTTP 429/503. Sau đó em giữ các kết quả đã chấm và chạy bổ sung các case còn lỗi, không sửa điểm bằng tay.
 
-| Chỉ số | `eval_before.json` | `eval_after.json` |
+| Chỉ số | `eval_before.json` (lần đầu) | `eval_after_complete.json` (tổng hợp) |
 |---|---|---|
 | Tổng số case | 22 | 22 |
-| Số case được chấm | 13 | 4 |
-| Số case unscored | 9 | 18 |
-| Điểm tổng | Chưa có (`null`) | Chưa có (`null`) |
-| Điểm trung bình các case đã chấm | 95.38/100 | 87.5/100 |
-| Điểm H7 trong bộ eval | 40/100 | Unscored |
-| Điểm H2 trong bộ eval | Unscored | 50/100 |
-| Model calls H7 trước cải tiến | 2 | Không có kết quả hợp lệ trong bộ eval |
-| Chi phí | Chưa xác định | Chưa xác định |
-
-Do số lượng case được chấm khác nhau nên em không dùng hai điểm trung bình trên để kết luận Agent tốt hơn hay kém hơn.
-
-**Kết quả kiểm thử riêng sau cải tiến:**
-
-| Chỉ số | Kết quả trước | Kết quả kiểm thử riêng sau cải tiến |
-|---|---|---|
+| Số case được chấm | 13 | 22 |
+| Số case chưa chấm | 9 | 0 |
+| Điểm tổng | Chưa có (`null`) | **89,55/100** |
 | H7 | 40/100 | 100/100 |
-| H2 | 50/100 (lần After toàn bộ) | 100/100 |
-| Số model calls H7 | 2 | 2 |
-| Token Agent H7 | 1.430 | 1.817 |
-| Unit tests | 37/37 đạt | 37/37 đạt |
+| H2 | Chưa chấm | 25/100 |
 
-Đối với H7, số lần gọi model không tăng nhưng lượng token nhiều hơn. Agent trả lời đúng hơn khi gặp tình huống thiếu dữ liệu.
+Ở After, em dùng 15 kết quả đã chấm từ `eval_after_final.json` và chạy riêng 7 case còn thiếu (E4, E5, E6, A4, A5, H1, H2). Em đã kiểm tra các trường cấu hình, ID, câu hỏi, expected và scenario trước khi tổng hợp bằng hàm `summarize()` gốc. Điểm 89,55 không phải điểm của một lượt chạy liên tục, mà là điểm tổng hợp từ các lượt kiểm thử. Các file dùng cùng cấu hình; việc xác minh cùng phiên bản code phải dựa vào lịch sử thay đổi của dự án.
 
-**Lỗi đã giải quyết:**
+**Kết quả thử riêng:** H7 đã đạt 100/100 nhiều lần. H2 từng đạt 100/100 khi thử riêng, nhưng trong bộ After hoàn chỉnh đạt 25/100. Em giữ điểm thực tế này, vì kết quả Agent có thể thay đổi giữa các lượt chạy.
 
-- H7: Agent không còn tự kết luận Cloudflare operational khi công cụ trả timeout trong lần kiểm thử riêng.
-- H2: Agent đã sử dụng đủ hai công cụ để kiểm tra cả sự cố lịch sử và trạng thái dịch vụ trong lần kiểm thử riêng.
+**Giới hạn so sánh Before–After:** `agent_before.py` được sao lưu sau khi đã có một số quy tắc xử lý timeout, nên không chắc trùng với bản đã tạo H7 = 40 ở lần Before đầu tiên. Em không lấy kết quả chạy mới của `agent_before.py` ghép chung với 13 case cũ rồi coi đó là một baseline thống nhất. Nếu chạy lại Before, em sẽ dùng cùng một bản `agent_before.py` cho đủ 22 case và ghi riêng nguồn gốc của lần đánh giá đó.
 
-**Lỗi còn lại hoặc mới xuất hiện:**
-
-Lần đánh giá Before có 8 case gặp HTTP 429 và 1 case gặp HTTP 503.
-
-Ở lần After, có 17 case bị ảnh hưởng bởi HTTP 429 (gồm cả lỗi gọi Agent và lỗi LLM Judge), 1 case gặp HTTP 503.
-
-Do các lỗi API này, nhiều case không được chấm dù chương trình vẫn chạy được. Em chưa thể xác định điểm tổng của toàn bộ 22 case.
+Em rút ra là Agent có thể gọi đúng công cụ nhưng vẫn đưa ra kết luận sai, hoặc bỏ sót công cụ cần thiết. Ngoài ra, điểm đánh giá chịu ảnh hưởng của sự khác nhau giữa các lượt chạy và khả năng đáp ứng của API.
 
 ## 5. Giới hạn
 
@@ -157,8 +135,8 @@ Trong quá trình làm Lab 04, em nhận thấy vẫn còn một số giới h�
 
 **Thứ ba, về giới hạn công cụ:** Công cụ chỉ tìm trong 50 incident gần nhất và có thể rút gọn nội dung cập nhật. Nếu không tìm thấy incident thì chưa thể khẳng định sự cố đó chưa từng tồn tại.
 
-**Thứ tư, về API:** Gemini gặp lỗi HTTP 429 và 503 trong quá trình chạy nhiều case liên tiếp. Điều này khiến một số case không được chấm và chưa có điểm tổng đầy đủ cho cả hai lần đánh giá.
+**Thứ tư, về API:** Gemini gặp lỗi HTTP 429 và 503 khi chạy nhiều case liên tiếp. Lần Before ban đầu còn 9 case chưa được chấm; After được tổng hợp đủ 22 case từ các lượt có điểm hợp lệ. Không thể coi các lần chạy khác nhau là một thử nghiệm kiểm soát hoàn toàn giống nhau.
 
-**Cuối cùng, về độ ổn định:** Em mới kiểm thử riêng H2 và H7 thành công sau khi sửa. Một lần đạt 100 điểm chưa đủ chứng minh Agent luôn xử lý đúng trong mọi tình huống.
+**Cuối cùng, về độ ổn định:** Em đã kiểm thử H2 và H7 nhiều lần nhưng điểm H2 không ổn định (có lần 100, có lần 25). Vì vậy, điểm một lần chưa đủ để chứng minh Agent luôn xử lý đúng.
 
 Qua bài lab này, em hiểu rõ hơn cách một AI Agent tự gọi công cụ, nhận kết quả rồi tiếp tục xử lý. Em cũng nhận ra rằng việc Agent gọi đúng tool chưa chắc đã tạo ra câu trả lời đúng. Cần kiểm tra cả bằng chứng, trạng thái dữ liệu và cách Agent đưa ra kết luận.
