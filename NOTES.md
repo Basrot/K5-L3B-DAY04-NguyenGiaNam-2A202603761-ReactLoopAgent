@@ -124,3 +124,95 @@ Hai bộ đánh giá hoàn chỉnh có cùng các trường cấu hình được
 - **Độ ổn định:** H2 có lần đạt 100 nhưng trong Eval After cuối chỉ đạt 25. Một lần thử tốt chưa đủ khẳng định Agent luôn xử lý đúng.
 
 Qua Lab 04, em hiểu rõ hơn cách ReAct Agent nhận câu hỏi, gọi công cụ, đọc kết quả rồi đưa ra câu trả lời. Em cũng nhận ra rằng gọi đúng tool chưa chắc đã đủ: Agent còn phải biết khi nào thiếu bằng chứng, khi nào cần thêm công cụ và khi nào không nên khẳng định một điều chưa được xác minh.
+
+## 6. Bonus – Mở rộng ReAct Loop Agent
+
+### 6.1. Nội dung thực hiện
+
+Em đã mở rộng ReAct Agent để kiểm tra và phân tích trạng thái của 5 nhà cung cấp: **GitHub, Cloudflare, Vercel, npm và DigitalOcean**.
+
+Các chức năng được thực hiện và kiểm thử:
+
+- Kiểm tra trạng thái nhiều nhà cung cấp trong cùng một yêu cầu.
+- Xử lý lỗi rate limit HTTP 429 bằng cách gọi lại công cụ với số lần giới hạn.
+- Tra cứu thông tin sự cố bằng `get_incident_details`.
+- Đọc timeline và xử lý phân trang khi cần.
+- Lọc thông tin không liên quan trong dữ liệu có nhiều nhiễu.
+- Phân biệt trạng thái dịch vụ hiện tại với các sự cố trong quá khứ.
+- Không suy diễn nguyên nhân chung giữa các nhà cung cấp khi thiếu bằng chứng.
+- Không làm theo chỉ dẫn giả mạo xuất hiện trong dữ liệu công cụ.
+
+### 6.2. Kết quả đánh giá
+
+| Chỉ số | Kết quả |
+|---|---|
+| Tổng số case Bonus | 10 |
+| Số case được chấm | 10/10 |
+| Số case đạt 100 điểm | 10/10 |
+| Điểm trung bình | 100/100 |
+| Điểm Bonus quy đổi tham khảo | 15/15 |
+| Unit tests bài chính | 37/37 PASS |
+| Unit tests Bonus | 3/3 PASS |
+
+Kết quả từng case:
+
+| Case | Điểm |
+|---|---:|
+| B1 | 100 |
+| B2 | 100 |
+| B3 | 100 |
+| B4 | 100 |
+| B5 | 100 |
+| B6 | 100 |
+| B7 | 100 |
+| B8 | 100 |
+| B9 | 100 |
+| B10 | 100 |
+
+### 6.3. Khó khăn và hướng xử lý
+
+Trong quá trình đánh giá, em gặp một số vấn đề:
+
+**1. Lỗi Gemini HTTP 503**
+
+Một số lượt chạy không hoàn thành vì API Gemini trả HTTP 503. Em kiểm tra trace để phân biệt lỗi hạ tầng với lỗi logic của Agent và thực hiện đánh giá lại các case chưa được chấm.
+
+**2. Agent chưa gọi đủ công cụ tra cứu sự cố**
+
+Ở một số lượt chạy, Agent chỉ dựa vào danh sách incident tổng quan mà chưa gọi `get_incident_details`, dẫn đến bị giới hạn điểm.
+
+Em đã bổ sung hướng dẫn trong system prompt để Agent ưu tiên lấy chi tiết sự cố khi người dùng yêu cầu phân tích, đối chiếu hoặc xác minh incident.
+
+**3. Xử lý rate limit ở Vercel**
+
+Case B10 ban đầu đạt 50/100 do Agent chưa gọi lại `get_vercel_status` sau khi gặp lỗi HTTP 429 giả lập.
+
+Sau khi cải thiện hướng dẫn retry, Agent đã gọi lại công cụ thành công ở lần thứ hai và được chấm 100/100.
+
+**4. Kiểm tra tính ổn định**
+
+Sau khi cập nhật Agent, em chạy lại toàn bộ unit tests:
+
+- 37/37 unit tests bài chính thành công.
+- 3/3 unit tests Bonus thành công.
+
+### 6.4. Giới hạn và lưu ý về kết quả
+
+File `eval_bonus.json` được tổng hợp từ 10 lượt đánh giá riêng biệt có cùng cấu hình, không phải kết quả của một lần chạy toàn bộ bộ Bonus.
+
+Các kết quả được giữ nguyên từ những lượt chấm thành công, không chỉnh sửa điểm hoặc thay đổi dữ liệu đánh giá.
+
+Do đó:
+
+- `score_0_100 = 100.0`
+- `scored_cases = 10`
+- `unscored_cases = 0`
+- `bonus_points_0_15 = null`
+
+Mức **15/15** là điểm thưởng quy đổi tham khảo. Điểm chính thức phụ thuộc vào quy định và kết quả chấm của giảng viên.
+
+### 6.5. Kết luận
+
+Qua phần Bonus, em hiểu rõ hơn cách xây dựng AI Agent có khả năng phối hợp nhiều công cụ, xử lý lỗi, truy xuất bằng chứng và chống lại các chỉ dẫn không đáng tin cậy.
+
+Kết quả đánh giá đạt 100/100 trên 10 case Bonus cho thấy Agent đã đáp ứng tốt các tình huống được kiểm thử trong những lượt chạy đã ghi nhận. Tuy nhiên, khả năng hoạt động ổn định với API thực tế vẫn cần tiếp tục cải thiện.
